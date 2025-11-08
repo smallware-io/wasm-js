@@ -1,14 +1,14 @@
 [package]
-name = "wasm-pack"
-description = "📦✨ your favorite rust -> wasm workflow tool!"
+name = "wasm-js"
+description = "Build rust libraries into vanilla JS that works everywhere"
 version = "0.13.1"
-authors = ["Ashley Williams <ashley666ashley@gmail.com>", "Jesper Håkansson <jesper@jesperh.se>"]
-repository = "https://github.com/drager/wasm-pack.git"
-license = "MIT OR Apache-2.0"
+authors = ["Matthew Timmermans"]
+repository = "https://github.com/smallware-io/wasm-js.git"
+license = "MIT"
 edition = "2021"
 readme = "README.md"
 categories = ["wasm"]
-documentation = "https://drager.github.io/wasm-pack/"
+documentation = "https://github.com/smallware-io/wasm-js"
 
 [dependencies]
 anyhow = "1.0.68"

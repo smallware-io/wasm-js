@@ -1,17 +1,17 @@
 {
-  "name": "wasm-pack",
+  "name": "wasm-js",
   "version": "0.13.1",
-  "description": "📦✨ your favorite rust -> wasm workflow tool!",
+  "description": "Build rust libraries into vanilla JS that works everywhere",
   "main": "binary.js",
   "scripts": {
     "postinstall": "node ./install.js"
   },
   "bin": {
-    "wasm-pack": "./run.js"
+    "wasm-js": "./run.js"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/drager/wasm-pack.git"
+    "url": "git+https://github.com/smallware-io/wasm-js.git"
   },
   "keywords": [
     "wasm",
@@ -22,12 +22,12 @@
     "npm",
     "package"
   ],
-  "author": "Jesper Håkansson <jesper@jesperh.se>",
-  "license": "MIT OR Apache-2.0",
+  "author": "Matthew Timmermans",
+  "license": "MIT",
   "bugs": {
-    "url": "https://github.com/drager/wasm-pack/issues"
+    "url": "https://github.com/smallware-io/wasm-js/issues"
   },
-  "homepage": "https://github.com/drager/wasm-pack#readme",
+  "homepage": "https://github.com/smallware-io/wasm-js#readme",
   "dependencies": {
     "binary-install": "^1.0.1"
   }

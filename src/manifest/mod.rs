@@ -1,11 +1,4 @@
 //! Reading and writing Cargo.toml and package.json manifests.
-
-#![allow(
-    clippy::new_ret_no_self,
-    clippy::needless_pass_by_value,
-    clippy::redundant_closure
-)]
-
 use anyhow::{anyhow, bail, Context, Result};
 mod npm;
 

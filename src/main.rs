@@ -1,5 +1,3 @@
-#![allow(clippy::redundant_closure, clippy::redundant_pattern_matching)]
-
 extern crate anyhow;
 extern crate clap;
 extern crate env_logger;

@@ -1,7 +1,6 @@
 //! Checking for the wasm32 target
 
 use crate::child;
-use crate::emoji;
 use crate::PBAR;
 use anyhow::{anyhow, bail, Context, Result};
 use log::error;
@@ -25,7 +24,7 @@ impl fmt::Display for Wasm32Check {
             let rustup_string = if self.is_rustup {
                 "It looks like Rustup is being used.".to_owned()
             } else {
-                format!("It looks like Rustup is not being used. For non-Rustup setups, the {} target needs to be installed manually. See https://drager.github.io/wasm-pack/book/prerequisites/non-rustup-setups.html on how to do this.", target)
+                format!("It looks like Rustup is not being used. For non-Rustup setups, the {} target needs to be installed manually.", target)
             };
 
             writeln!(
@@ -54,7 +53,7 @@ impl fmt::Display for Wasm32Check {
 /// Ensure that `rustup` has the `wasm32-unknown-unknown` target installed for
 /// current toolchain
 pub fn check_for_wasm32_target() -> Result<()> {
-    let msg = format!("{}Checking for the Wasm target...", emoji::TARGET);
+    let msg = format!("Checking for the Wasm target...");
     PBAR.info(&msg);
 
     // Check if wasm32 target is present, otherwise bail.

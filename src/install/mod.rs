@@ -2,7 +2,6 @@
 
 use self::krate::Krate;
 use crate::child;
-use crate::emoji;
 use crate::install;
 use crate::PBAR;
 use anyhow::{anyhow, bail, Context, Result};
@@ -71,7 +70,7 @@ pub fn download_prebuilt_or_cargo_install(
         }
     }
 
-    let msg = format!("{}Installing {}...", emoji::DOWN_ARROW, tool);
+    let msg = format!("Installing {}...", tool);
     PBAR.info(&msg);
 
     let dl = download_prebuilt(&tool, cache, version, install_permitted);

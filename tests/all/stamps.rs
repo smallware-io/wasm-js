@@ -1,5 +1,5 @@
 use std::{fs, panic};
-use wasm_pack::stamps;
+use wasm_js::stamps;
 
 fn run_test<T>(test: T) -> ()
 where

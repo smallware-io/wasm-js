@@ -1,13 +1,12 @@
 //! Fancy progress bar functionality.
 
-use crate::emoji;
 use anyhow::{bail, Error, Result};
 use console::style;
 use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy)]
-/// The maximum log level for wasm-pack
+/// The maximum log level
 // The ordering is important: the least verbose must be at
 // the top and the most verbose at the bottom
 pub enum LogLevel {
@@ -66,7 +65,7 @@ impl ProgressOutput {
         (level as u8) <= self.log_level.load(Ordering::SeqCst)
     }
 
-    /// Sets the log level for wasm-pack
+    /// Sets the log level
     pub fn set_log_level(&self, log_level: LogLevel) {
         self.log_level.store(log_level as u8, Ordering::SeqCst);
     }
@@ -83,9 +82,8 @@ impl ProgressOutput {
     pub fn warn(&self, message: &str) {
         if !self.quiet() && self.is_log_enabled(LogLevel::Warn) {
             let warn = format!(
-                "{}: {} {}",
+                "{}: {}",
                 style("[WARN]").bold().dim(),
-                emoji::WARN,
                 message
             );
             self.message(&warn);
@@ -96,9 +94,8 @@ impl ProgressOutput {
     pub fn error(&self, message: &str) {
         if self.is_log_enabled(LogLevel::Error) {
             let err = format!(
-                "{}: {} {}",
+                "{}: {}",
                 style("[ERR]").bold().dim(),
-                emoji::ERROR,
                 message
             );
             self.message(&err);

@@ -1,20 +1,14 @@
-//! Your favorite rust -> wasm workflow tool!
-
-#![deny(missing_docs)]
-
 extern crate anyhow;
 extern crate cargo_metadata;
 extern crate console;
 extern crate glob;
 extern crate parking_lot;
-extern crate semver;
 extern crate serde;
 extern crate strsim;
 extern crate which;
 #[macro_use]
 extern crate serde_derive;
 extern crate binary_install;
-extern crate chrono;
 extern crate dialoguer;
 extern crate log;
 extern crate serde_ignored;
@@ -24,18 +18,13 @@ extern crate walkdir;
 
 pub mod bindgen;
 pub mod build;
-pub mod cache;
 pub mod child;
 pub mod command;
-pub mod emoji;
-pub mod generate;
 pub mod install;
 pub mod license;
 pub mod lockfile;
 pub mod manifest;
-pub mod npm;
 pub mod progressbar;
-pub mod readme;
 pub mod stamps;
 pub mod target;
 pub mod test;
@@ -65,6 +54,6 @@ pub struct Cli {
     pub quiet: bool,
 
     #[clap(long = "log-level", default_value = "info")]
-    /// The maximum level of messages that should be logged by wasm-pack. [possible values: info, warn, error]
+    /// The maximum level of messages that should be logged by
     pub log_level: LogLevel,
 }

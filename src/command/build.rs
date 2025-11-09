@@ -1,15 +1,9 @@
-//! Implementation of the `wasm-pack build` command.
-
 use crate::bindgen;
 use crate::build;
-use crate::cache;
 use crate::command::utils::{create_pkg_dir, get_crate_path};
-use crate::emoji;
 use crate::install::{self, InstallMode, Tool};
-use crate::license;
 use crate::lockfile::Lockfile;
 use crate::manifest;
-use crate::readme;
 use crate::wasm_opt;
 use crate::PBAR;
 use anyhow::{anyhow, bail, Error, Result};
@@ -22,7 +16,7 @@ use std::path::PathBuf;
 use std::str::FromStr;
 use std::time::Instant;
 
-/// Everything required to configure and run the `wasm-pack build` command.
+/// Everything required to configure and run the `wasm-js build` command.
 #[allow(missing_docs)]
 pub struct Build {
     pub crate_path: PathBuf,
@@ -112,7 +106,7 @@ pub enum BuildProfile {
     Custom(String),
 }
 
-/// Everything required to configure and run the `wasm-pack build` command.
+/// Everything required to configure and run the build command.
 #[derive(Debug, Args)]
 #[command(allow_hyphen_values = true, trailing_var_arg = true)]
 pub struct BuildOptions {
@@ -258,7 +252,7 @@ impl Build {
             out_dir,
             out_name: build_opts.out_name,
             bindgen: None,
-            cache: cache::get_wasm_pack_cache()?,
+            cache: Cache::new("wasm-js")?,
             extra_options: build_opts.extra_options,
         })
     }
@@ -285,11 +279,10 @@ impl Build {
             self.out_dir.display()
         );
 
-        PBAR.info(&format!("{} Done in {}", emoji::SPARKLE, &duration));
+        PBAR.info(&format!("Done in {}", &duration));
 
         PBAR.info(&format!(
-            "{} Your wasm pkg is ready to publish at {}.",
-            emoji::PACKAGE,
+            "Your wasm pkg is ready to publish at {}.",
             self.out_dir.display()
         ));
         Ok(())
@@ -336,8 +329,6 @@ impl Build {
         if !no_pack {
             steps.extend(steps![
                 step_create_json,
-                step_copy_readme,
-                step_copy_license,
             ]);
         }
 
@@ -399,20 +390,6 @@ impl Build {
             "Wrote a package.json at {:#?}.",
             &self.out_dir.join("package.json")
         );
-        Ok(())
-    }
-
-    fn step_copy_readme(&mut self) -> Result<()> {
-        info!("Copying readme from crate...");
-        readme::copy_from_crate(&self.crate_data, &self.crate_path, &self.out_dir)?;
-        info!("Copied readme from crate to {:#?}.", &self.out_dir);
-        Ok(())
-    }
-
-    fn step_copy_license(&mut self) -> Result<()> {
-        info!("Copying license from crate...");
-        license::copy_from_crate(&self.crate_data, &self.crate_path, &self.out_dir)?;
-        info!("Copied license from crate to {:#?}.", &self.out_dir);
         Ok(())
     }
 

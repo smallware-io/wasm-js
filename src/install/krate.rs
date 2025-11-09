@@ -23,7 +23,7 @@ impl Krate {
             .get(&krate_address)
             .set(
                 "user-agent",
-                &format!("wasm-pack/{}", VERSION.unwrap_or("unknown")),
+                &format!("wasm-js/{}", VERSION.unwrap_or("unknown")),
             )
             .call()?;
 

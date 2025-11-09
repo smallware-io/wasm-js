@@ -1,5 +1,8 @@
 use binary_install::Cache;
 use lazy_static::lazy_static;
+use wasm_js::install;
+use wasm_js::install::Tool;
+use wasm_js::wasm_opt;
 use std::env;
 use std::fs;
 use std::mem::ManuallyDrop;
@@ -8,8 +11,6 @@ use std::process::{Command, Stdio};
 use std::sync::{MutexGuard, Once};
 use std::thread;
 use tempfile::TempDir;
-use wasm_pack;
-use wasm_pack::install::{self, Tool};
 
 /// A test fixture in a temporary directory.
 pub struct Fixture {
@@ -34,7 +35,7 @@ impl Fixture {
         let root = target_dir.join("t");
         fs::create_dir_all(&root).unwrap();
         let dir = TempDir::new_in(&root).unwrap();
-        let path = dir.path().join("wasm-pack");
+        let path = dir.path().join("wasm-js");
         eprintln!("Created fixture at {}", path.display());
         Fixture {
             dir: ManuallyDrop::new(dir),
@@ -128,11 +129,9 @@ impl Fixture {
             &format!(
                 r#"
                     [package]
-                    authors = ["The wasm-pack developers"]
                     description = "so awesome rust+wasm package"
                     license = "WTFPL"
                     name = "{}"
-                    repository = "https://github.com/drager/wasm-pack.git"
                     version = "0.1.0"
 
                     [lib]
@@ -166,11 +165,9 @@ impl Fixture {
             &format!(
                 r#"
                     [package]
-                    authors = ["The wasm-pack developers"]
                     description = "so awesome rust+wasm package"
                     license = "WTFPL"
                     name = "{}"
-                    repository = "https://github.com/drager/wasm-pack.git"
                     version = "0.1.0"
 
                     [lib]
@@ -209,11 +206,9 @@ impl Fixture {
             &format!(
                 r#"
                     [package]
-                    authors = ["The wasm-pack developers"]
                     description = "so awesome rust+wasm package"
                     name = "{}"
                     license-file = "{}"
-                    repository = "https://github.com/drager/wasm-pack.git"
                     version = "0.1.0"
 
                     [lib]
@@ -294,7 +289,7 @@ impl Fixture {
         let cache = self.cache();
 
         INSTALL_WASM_OPT.call_once(|| {
-            wasm_pack::wasm_opt::find_wasm_opt(&cache, true).unwrap();
+            wasm_opt::find_wasm_opt(&cache, true).unwrap();
         });
     }
 
@@ -328,36 +323,6 @@ impl Fixture {
         }
     }
 
-    /// Download `geckodriver` and return its path.
-    ///
-    /// Takes care to ensure that only one `geckodriver` is downloaded for the whole
-    /// test suite.
-    pub fn install_local_geckodriver(&self) -> PathBuf {
-        static FETCH_GECKODRIVER: Once = Once::new();
-        let cache = self.cache();
-
-        // like above for synchronization
-        FETCH_GECKODRIVER.call_once(|| {
-            wasm_pack::test::webdriver::install_geckodriver(&cache, true).unwrap();
-        });
-        wasm_pack::test::webdriver::install_geckodriver(&cache, true).unwrap()
-    }
-
-    /// Download `chromedriver` and return its path.
-    ///
-    /// Takes care to ensure that only one `chromedriver` is downloaded for the whole
-    /// test suite.
-    pub fn install_local_chromedriver(&self) -> PathBuf {
-        static FETCH_CHROMEDRIVER: Once = Once::new();
-        let cache = self.cache();
-
-        // like above for synchronization
-        FETCH_CHROMEDRIVER.call_once(|| {
-            wasm_pack::test::webdriver::install_chromedriver(&cache, true).unwrap();
-        });
-        wasm_pack::test::webdriver::install_chromedriver(&cache, true).unwrap()
-    }
-
     pub fn cache_dir(&self) -> PathBuf {
         Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("target")
@@ -387,9 +352,9 @@ impl Fixture {
         self
     }
 
-    /// Get a `wasm-pack` command configured to run in this fixure's temp
+    /// Get a command configured to run in this fixure's temp
     /// directory and using the test cache.
-    pub fn wasm_pack(&self) -> Command {
+    pub fn wasm_js(&self) -> Command {
         use assert_cmd::prelude::*;
         let mut cmd = Command::cargo_bin(env!("CARGO_PKG_NAME")).unwrap();
         cmd.current_dir(&self.path);
@@ -426,7 +391,6 @@ pub fn bad_cargo_toml() -> Fixture {
             [package]
             name = "bad-cargo-toml"
             version = "0.1.0"
-            authors = ["The wasm-pack developers"]
 
             [lib]
             crate-type = ["foo"]
@@ -462,11 +426,9 @@ pub fn no_cdylib() -> Fixture {
         "Cargo.toml",
         r#"
             [package]
-            authors = ["The wasm-pack developers"]
             description = "so awesome rust+wasm package"
             license = "WTFPL"
             name = "foo"
-            repository = "https://github.com/drager/wasm-pack.git"
             version = "0.1.0"
 
             # [lib]
@@ -496,7 +458,6 @@ pub fn serde_feature() -> Fixture {
             [package]
             name = "serde-serialize"
             version = "0.1.0"
-            authors = ["The wasm-pack developers"]
 
             [lib]
             crate-type = ["cdylib"]
@@ -519,7 +480,6 @@ pub fn wbg_test_diff_versions() -> Fixture {
                 [package]
                 name = "wbg-test-diff-versions"
                 version = "0.1.0"
-                authors = ["The wasm-pack developers"]
 
                 [lib]
                 crate-type = ["cdylib", "rlib"]
@@ -633,11 +593,9 @@ pub fn transitive_dependencies() -> Fixture {
             PathBuf::from("main/Cargo.toml"),
             r#"
             [package]
-            authors = ["The wasm-pack developers"]
             description = "so awesome rust+wasm package"
             license = "WTFPL"
             name = "main_project"
-            repository = "https://github.com/drager/wasm-pack.git"
             version = "0.1.0"
 
             [lib]
@@ -683,11 +641,9 @@ pub fn transitive_dependencies() -> Fixture {
             PathBuf::from("project_a/Cargo.toml"),
             r#"
             [package]
-            authors = ["The wasm-pack developers"]
             description = "so awesome rust+wasm package"
             license = "WTFPL"
             name = "project_a"
-            repository = "https://github.com/drager/wasm-pack.git"
             version = "0.1.0"
 
             [lib]
@@ -733,11 +689,9 @@ pub fn transitive_dependencies() -> Fixture {
             PathBuf::from("project_b/Cargo.toml"),
             r#"
             [package]
-            authors = ["The wasm-pack developers"]
             description = "so awesome rust+wasm package"
             license = "WTFPL"
             name = "project_b"
-            repository = "https://github.com/drager/wasm-pack.git"
             version = "0.1.0"
 
             [lib]

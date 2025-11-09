@@ -11,19 +11,13 @@ use self::npm::{
 use crate::command::build::{BuildProfile, Target};
 use crate::PBAR;
 use cargo_metadata::Metadata;
-use chrono::offset;
-use chrono::DateTime;
 use serde::{self, Deserialize};
 use serde_json;
 use std::collections::BTreeSet;
-use std::env;
-use std::io::Write;
 use strsim::levenshtein;
 use toml;
 
-const WASM_PACK_METADATA_KEY: &str = "package.metadata.wasm-pack";
-const WASM_PACK_VERSION: Option<&'static str> = option_env!("CARGO_PKG_VERSION");
-const WASM_PACK_REPO_URL: &str = "https://github.com/drager/wasm-pack";
+const CARGO_METADATA_KEY: &str = "package.metadata.wasm-js";
 
 /// Store for metadata learned about a crate
 pub struct CrateData {
@@ -49,8 +43,8 @@ struct CargoPackage {
 
 #[derive(Default, Deserialize)]
 struct CargoMetadata {
-    #[serde(default, rename = "wasm-pack")]
-    wasm_pack: CargoWasmPack,
+    #[serde(default, rename = "wasm-js")]
+    wasm_js: CargoWasmPack,
 }
 
 #[derive(Default, Deserialize)]
@@ -98,7 +92,7 @@ impl Default for CargoWasmPackProfiles {
 }
 
 /// This is where configuration goes for wasm-bindgen, wasm-opt, wasm-snip, or
-/// anything else that wasm-pack runs.
+/// anything else that we run.
 #[derive(Default, Deserialize)]
 pub struct CargoWasmPackProfile {
     #[serde(default, rename = "wasm-bindgen")]
@@ -123,139 +117,6 @@ struct CargoWasmPackProfileWasmBindgen {
 
     #[serde(default, rename = "split-linked-modules")]
     split_linked_modules: Option<bool>,
-}
-
-/// Struct for storing information received from crates.io
-#[derive(Deserialize, Debug)]
-pub struct Crate {
-    #[serde(rename = "crate")]
-    crt: CrateInformation,
-}
-
-#[derive(Deserialize, Debug)]
-struct CrateInformation {
-    max_version: String,
-}
-
-impl Crate {
-    /// Returns latest wasm-pack version
-    pub fn return_wasm_pack_latest_version() -> Result<Option<String>> {
-        let current_time = chrono::offset::Local::now();
-        let old_metadata_file = Self::return_wasm_pack_file();
-
-        match old_metadata_file {
-            Some(ref file_contents) => {
-                let last_updated = Self::return_stamp_file_value(&file_contents, "created")
-                    .and_then(|t| DateTime::parse_from_str(t.as_str(), "%+").ok());
-
-                last_updated
-                    .map(|last_updated| {
-                        if current_time.signed_duration_since(last_updated).num_hours() > 24 {
-                            Self::return_api_call_result(current_time).map(Some)
-                        } else {
-                            Ok(Self::return_stamp_file_value(&file_contents, "version"))
-                        }
-                    })
-                    .unwrap_or_else(|| Ok(None))
-            }
-            None => Self::return_api_call_result(current_time).map(Some),
-        }
-    }
-
-    fn return_api_call_result(current_time: DateTime<offset::Local>) -> Result<String> {
-        let version = Self::return_latest_wasm_pack_version();
-
-        // We always override the stamp file with the current time because we don't
-        // want to hit the API all the time if it fails. It should follow the same
-        // "policy" as the success. This means that the 24 hours rate limiting
-        // will be active regardless if the check succeeded or failed.
-        match version {
-            Ok(ref version) => Self::override_stamp_file(current_time, Some(&version)).ok(),
-            Err(_) => Self::override_stamp_file(current_time, None).ok(),
-        };
-
-        version
-    }
-
-    fn override_stamp_file(
-        current_time: DateTime<offset::Local>,
-        version: Option<&str>,
-    ) -> Result<()> {
-        let path = env::current_exe()?;
-
-        let mut file = fs::OpenOptions::new()
-            .read(true)
-            .write(true)
-            .append(true)
-            .create(true)
-            .open(path.with_extension("stamp"))?;
-
-        file.set_len(0)?;
-
-        write!(file, "created {:?}", current_time)?;
-
-        if let Some(version) = version {
-            write!(file, "\nversion {}", version)?;
-        }
-
-        Ok(())
-    }
-
-    /// Return stamp file where metadata is stored.
-    fn return_wasm_pack_file() -> Option<String> {
-        if let Ok(path) = env::current_exe() {
-            if let Ok(file) = fs::read_to_string(path.with_extension("stamp")) {
-                return Some(file);
-            }
-        }
-        None
-    }
-
-    /// Returns wasm-pack latest version (if it's received) by executing check_wasm_pack_latest_version function.
-    fn return_latest_wasm_pack_version() -> Result<String> {
-        Self::check_wasm_pack_latest_version().map(|crt| crt.crt.max_version)
-    }
-
-    /// Read the stamp file and return value assigned to a certain key.
-    fn return_stamp_file_value(file: &str, word: &str) -> Option<String> {
-        let created = file
-            .lines()
-            .find(|line| line.starts_with(word))
-            .and_then(|l| l.split_whitespace().nth(1));
-
-        created.map(|s| s.to_string())
-    }
-
-    /// Call to the crates.io api and return the latest version of `wasm-pack`
-    fn check_wasm_pack_latest_version() -> Result<Crate> {
-        let url = "https://crates.io/api/v1/crates/wasm-pack";
-        let agent = ureq::builder()
-            .try_proxy_from_env(true)
-            .user_agent(&format!(
-                "wasm-pack/{} ({})",
-                WASM_PACK_VERSION.unwrap_or_else(|| "unknown"),
-                WASM_PACK_REPO_URL
-            ))
-            .build();
-        let resp = agent
-            .get(url)
-            .call()
-            .context("failed to get wasm-pack version")?;
-
-        let status_code = resp.status();
-
-        if 200 <= status_code && status_code < 300 {
-            let json = resp.into_json()?;
-
-            Ok(json)
-        } else {
-            bail!(
-                "Received a bad HTTP status code ({}) when checking for newer wasm-pack version at: {}",
-                status_code,
-                url
-            )
-        }
-    }
 }
 
 #[derive(Clone, Deserialize)]
@@ -493,8 +354,8 @@ impl CrateData {
             let path_string = path.to_string();
 
             if path_string.starts_with("package.metadata")
-                && (path_string.contains("wasm-pack")
-                    || levenshtein(WASM_PACK_METADATA_KEY, &path_string) <= levenshtein_threshold)
+                && (path_string.contains("wasm-js")
+                    || levenshtein(CARGO_METADATA_KEY, &path_string) <= levenshtein_threshold)
             {
                 unused_keys.insert(path_string);
             }
@@ -521,10 +382,10 @@ impl CrateData {
     /// Get the configured profile.
     pub fn configured_profile(&self, profile: BuildProfile) -> &CargoWasmPackProfile {
         match profile {
-            BuildProfile::Dev => &self.manifest.package.metadata.wasm_pack.profile.dev,
-            BuildProfile::Profiling => &self.manifest.package.metadata.wasm_pack.profile.profiling,
-            BuildProfile::Release => &self.manifest.package.metadata.wasm_pack.profile.release,
-            BuildProfile::Custom(_) => &self.manifest.package.metadata.wasm_pack.profile.custom,
+            BuildProfile::Dev => &self.manifest.package.metadata.wasm_js.profile.dev,
+            BuildProfile::Profiling => &self.manifest.package.metadata.wasm_js.profile.profiling,
+            BuildProfile::Release => &self.manifest.package.metadata.wasm_js.profile.release,
+            BuildProfile::Custom(_) => &self.manifest.package.metadata.wasm_js.profile.custom,
         }
     }
 

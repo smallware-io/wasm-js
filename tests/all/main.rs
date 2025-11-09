@@ -10,18 +10,9 @@ extern crate serde_json;
 extern crate serial_test;
 extern crate clap;
 extern crate tempfile;
-extern crate wasm_pack;
 
 mod build;
-mod download;
-mod generate;
-mod license;
-mod lockfile;
 mod log_level;
-mod manifest;
-mod readme;
 mod stamps;
-mod test;
 mod utils;
 mod wasm_opt;
-mod webdriver;

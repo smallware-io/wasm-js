@@ -1,6 +1,6 @@
-//! Information about the target wasm-pack is currently being compiled for.
+//! Information about the target we're currently being compiled for.
 //!
-//! That is, whether we are building wasm-pack for windows vs linux, and x86 vs
+//! That is, whether we are building for windows vs linux, and x86 vs
 //! x86-64, etc.
 
 #![allow(missing_docs)]

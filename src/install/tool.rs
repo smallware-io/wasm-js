@@ -1,6 +1,6 @@
 use std::fmt;
 
-/// Represents the set of CLI tools wasm-pack uses
+/// Represents the set of CLI tools we use
 pub enum Tool {
     /// cargo-generate CLI tool
     CargoGenerate,

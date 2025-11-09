@@ -1986,7 +1986,7 @@ dependencies = [
 
 [[package]]
 name = "wasm-js"
-version = "0.13.1"
+version = "0.1.0"
 dependencies = [
  "anyhow",
  "assert_cmd",

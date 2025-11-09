@@ -1,7 +1,4 @@
 //! Testing a Rust crate compiled to wasm.
-
-pub mod webdriver;
-
 use crate::child;
 use crate::PBAR;
 use anyhow::{Context, Result};

@@ -10,7 +10,7 @@ fn off_in_dev() {
     fixture.install_wasm_opt();
 
     fixture
-        .wasm_pack()
+        .wasm_js()
         .arg("build")
         .arg("--dev")
         .assert()
@@ -26,7 +26,7 @@ fn on_in_release() {
     fixture.install_wasm_opt();
 
     fixture
-        .wasm_pack()
+        .wasm_js()
         .arg("build")
         .assert()
         .stderr(predicates::str::contains("wasm-opt"))
@@ -55,7 +55,7 @@ fn disable_in_release() {
                 [dependencies]
                 wasm-bindgen = "0.2"
 
-                [package.metadata.wasm-pack.profile.release]
+                [package.metadata.wasm-js.profile.release]
                 wasm-opt = false
             "#,
         )
@@ -64,7 +64,7 @@ fn disable_in_release() {
     fixture.install_wasm_opt();
 
     fixture
-        .wasm_pack()
+        .wasm_js()
         .arg("build")
         .assert()
         .stderr(predicates::str::contains("wasm-opt").not())
@@ -93,7 +93,7 @@ fn enable_in_dev() {
                 [dependencies]
                 wasm-bindgen = "0.2"
 
-                [package.metadata.wasm-pack.profile.dev]
+                [package.metadata.wasm-js.profile.dev]
                 wasm-opt = true
             "#,
         )
@@ -102,7 +102,7 @@ fn enable_in_dev() {
     fixture.install_wasm_opt();
 
     fixture
-        .wasm_pack()
+        .wasm_js()
         .arg("build")
         .arg("--dev")
         .assert()
@@ -134,7 +134,7 @@ fn custom_args() {
                 [dependencies]
                 wasm-bindgen = "0.2"
 
-                [package.metadata.wasm-pack.profile.release]
+                [package.metadata.wasm-js.profile.release]
                 wasm-opt = ['--not-accepted-argument']
             "#,
         )
@@ -143,7 +143,7 @@ fn custom_args() {
     fixture.install_wasm_opt();
 
     fixture
-        .wasm_pack()
+        .wasm_js()
         .arg("build")
         .assert()
         .stderr(predicates::str::contains("--not-accepted-argument"))
@@ -172,7 +172,7 @@ fn misconfigured() {
                 [dependencies]
                 wasm-bindgen = "0.2"
 
-                [package.metadata.wasm-pack.profile.release]
+                [package.metadata.wasm-js.profile.release]
                 wasm-opt = 32
             "#,
         )
@@ -181,7 +181,7 @@ fn misconfigured() {
     fixture.install_wasm_opt();
 
     fixture
-        .wasm_pack()
+        .wasm_js()
         .arg("build")
         .assert()
         .stderr(predicates::str::contains("failed to parse manifest"))

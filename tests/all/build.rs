@@ -7,7 +7,7 @@ use std::path::Path;
 fn build_in_non_crate_directory_doesnt_panic() {
     let fixture = utils::fixture::not_a_crate();
     fixture
-        .wasm_pack()
+        .wasm_js()
         .arg("build")
         .arg(".")
         .assert()
@@ -18,14 +18,14 @@ fn build_in_non_crate_directory_doesnt_panic() {
 #[test]
 fn it_should_build_js_hello_world_example() {
     let fixture = utils::fixture::js_hello_world();
-    fixture.wasm_pack().arg("build").assert().success();
+    fixture.wasm_js().arg("build").assert().success();
 }
 
 #[test]
 fn it_should_not_make_a_pkg_json_if_passed_no_pack() {
     let fixture = utils::fixture::js_hello_world();
     fixture
-        .wasm_pack()
+        .wasm_js()
         .arg("build")
         .arg("--no-pack")
         .assert()
@@ -41,60 +41,12 @@ fn it_should_not_make_a_pkg_json_if_passed_no_pack() {
 fn it_should_build_js_hello_world_example_with_custom_target_dir() {
     let fixture = utils::fixture::js_hello_world();
     fixture
-        .wasm_pack()
+        .wasm_js()
         .arg("build")
         .arg("--target-dir")
         .arg("target2")
         .arg("--all-features")
         .arg("--offline")
-        .assert()
-        .success();
-}
-
-#[test]
-fn it_should_build_crates_in_a_workspace() {
-    let fixture = utils::fixture::Fixture::new();
-    fixture
-        .file(
-            "Cargo.toml",
-            r#"
-                [workspace]
-                members = ["blah"]
-            "#,
-        )
-        .file(
-            Path::new("blah").join("Cargo.toml"),
-            r#"
-                [package]
-                authors = ["The wasm-pack developers"]
-                description = "so awesome rust+wasm package"
-                license = "WTFPL"
-                name = "blah"
-                repository = "https://github.com/drager/wasm-pack.git"
-                version = "0.1.0"
-
-                [lib]
-                crate-type = ["cdylib"]
-
-                [dependencies]
-                wasm-bindgen = "0.2"
-            "#,
-        )
-        .file(
-            Path::new("blah").join("src").join("lib.rs"),
-            r#"
-                extern crate wasm_bindgen;
-                use wasm_bindgen::prelude::*;
-
-                #[wasm_bindgen]
-                pub fn hello() -> u32 { 42 }
-            "#,
-        )
-        .install_local_wasm_bindgen();
-    fixture
-        .wasm_pack()
-        .current_dir(&fixture.path.join("blah"))
-        .arg("build")
         .assert()
         .success();
 }
@@ -131,7 +83,7 @@ fn renamed_crate_name_works() {
             "#,
         )
         .install_local_wasm_bindgen();
-    fixture.wasm_pack().arg("build").assert().success();
+    fixture.wasm_js().arg("build").assert().success();
 }
 
 #[test]
@@ -167,7 +119,7 @@ fn dash_dash_web_target_has_error_on_old_bindgen() {
         )
         .install_local_wasm_bindgen();
     let cmd = fixture
-        .wasm_pack()
+        .wasm_js()
         .arg("build")
         .arg("--target")
         .arg("web")
@@ -188,7 +140,7 @@ fn it_should_build_nested_project_with_transitive_dependencies() {
     let fixture = utils::fixture::transitive_dependencies();
     fixture.install_local_wasm_bindgen();
     fixture
-        .wasm_pack()
+        .wasm_js()
         .current_dir(fixture.path.join("main"))
         .arg("build")
         .assert()
@@ -205,7 +157,7 @@ fn build_different_profiles() {
         .cloned()
     {
         fixture
-            .wasm_pack()
+            .wasm_js()
             .arg("build")
             .arg(profile)
             .assert()
@@ -220,7 +172,7 @@ fn build_custom_profile() {
     fixture.install_local_wasm_bindgen();
 
     fixture
-        .wasm_pack()
+        .wasm_js()
         .arg("build")
         .arg("--profile")
         .arg(profile_name)
@@ -239,11 +191,9 @@ fn build_with_and_without_wasm_bindgen_debug() {
                 format!(
                     r#"
                     [package]
-                    authors = ["The wasm-pack developers"]
                     description = "so awesome rust+wasm package"
                     license = "WTFPL"
                     name = "whatever"
-                    repository = "https://github.com/drager/wasm-pack.git"
                     version = "0.1.0"
 
                     [lib]
@@ -252,7 +202,7 @@ fn build_with_and_without_wasm_bindgen_debug() {
                     [dependencies]
                     wasm-bindgen = "0.2"
 
-                    [package.metadata.wasm-pack.profile.dev.wasm-bindgen]
+                    [package.metadata.wasm-js.profile.dev.wasm-bindgen]
                     debug-js-glue = {}
                     "#,
                     debug
@@ -284,7 +234,7 @@ fn build_with_and_without_wasm_bindgen_debug() {
             .install_local_wasm_bindgen();
 
         fixture
-            .wasm_pack()
+            .wasm_js()
             .arg("build")
             .arg("--dev")
             .assert()
@@ -308,7 +258,7 @@ fn build_with_arbitrary_cargo_options() {
     let fixture = utils::fixture::js_hello_world();
     fixture.install_local_wasm_bindgen();
     fixture
-        .wasm_pack()
+        .wasm_js()
         .arg("build")
         .arg("--no-default-features")
         .assert()
@@ -320,7 +270,7 @@ fn build_no_install() {
     let fixture = utils::fixture::js_hello_world();
     fixture.install_local_wasm_bindgen();
     fixture
-        .wasm_pack()
+        .wasm_js()
         .arg("build")
         .arg("--mode")
         .arg("no-install")
@@ -333,24 +283,10 @@ fn build_force() {
     let fixture = utils::fixture::js_hello_world();
     fixture.install_local_wasm_bindgen();
     fixture
-        .wasm_pack()
+        .wasm_js()
         .arg("build")
         .arg("--mode")
         .arg("force")
-        .assert()
-        .success();
-}
-
-#[test]
-fn build_from_new() {
-    let fixture = utils::fixture::not_a_crate();
-    let name = "generated-project";
-    fixture.wasm_pack().arg("new").arg(name).assert().success();
-    let project_location = fixture.path.join(&name);
-    fixture
-        .wasm_pack()
-        .arg("build")
-        .arg(&project_location)
         .assert()
         .success();
 }
@@ -364,11 +300,9 @@ fn build_crates_with_same_names() {
             "somename1/Cargo.toml",
             r#"
             [package]
-            authors = ["The wasm-pack developers"]
             description = "so awesome rust+wasm package"
             license = "WTFPL"
             name = "somename"
-            repository = "https://github.com/drager/wasm-pack.git"
             version = "0.1.0"
 
             [lib]
@@ -394,11 +328,9 @@ fn build_crates_with_same_names() {
             "somename2/Cargo.toml",
             r#"
             [package]
-            authors = ["The wasm-pack developers"]
             description = "so awesome rust+wasm package"
             license = "WTFPL"
             name = "somename"
-            repository = "https://github.com/drager/wasm-pack.git"
             version = "0.1.1"
 
             [lib]
@@ -415,7 +347,7 @@ fn build_crates_with_same_names() {
         );
     fixture.install_local_wasm_bindgen();
     fixture
-        .wasm_pack()
+        .wasm_js()
         .current_dir(fixture.path.join("somename1"))
         .arg("build")
         .assert()

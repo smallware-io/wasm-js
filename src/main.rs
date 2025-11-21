@@ -7,11 +7,11 @@ extern crate which;
 
 use anyhow::Result;
 use clap::Parser;
-use wasm_js::Cli;
-use wasm_js::PBAR;
-use wasm_js::command::run_wasm_pack;
 use std::env;
 use std::panic;
+use wasm_js::command::run_command;
+use wasm_js::Cli;
+use wasm_js::PBAR;
 
 fn main() {
     env_logger::init();
@@ -36,7 +36,7 @@ fn run() -> Result<()> {
         PBAR.set_quiet(true);
     }
 
-    run_wasm_pack(args.cmd)?;
+    run_command(&args)?;
 
     Ok(())
 }

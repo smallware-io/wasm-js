@@ -1,6 +1,7 @@
 //! CLI command structures, parsing, and execution.
 pub mod build;
-pub mod utils;
+
+use crate::Cli;
 
 use self::build::{Build, BuildOptions};
 use anyhow::Result;
@@ -15,13 +16,13 @@ pub enum Command {
 }
 
 /// Run a command with the given logger!
-pub fn run_wasm_pack(command: Command) -> Result<()> {
+pub fn run_command(args: &Cli) -> Result<()> {
     // Run the correct command based off input and store the result of it so that we can clear
     // the progress bar then return it
-    match command {
+    match &args.cmd {
         Command::Build(build_opts) => {
             info!("Running build command...");
-            Build::try_from_opts(build_opts).and_then(|mut b| b.run())
+            Build::try_from_opts(&args, &build_opts).and_then(|mut b| b.run())
         }
     }
 }

@@ -1,7 +1,10 @@
 use crate::utils;
 use assert_cmd::prelude::*;
 use std::fs;
-use std::path::Path;
+use wasm_js::{
+    command::{self, build::BuildOptions},
+    Cli,
+};
 
 #[test]
 fn build_in_non_crate_directory_doesnt_panic() {
@@ -18,20 +21,21 @@ fn build_in_non_crate_directory_doesnt_panic() {
 #[test]
 fn it_should_build_js_hello_world_example() {
     let fixture = utils::fixture::js_hello_world();
-    fixture.wasm_js().arg("build").assert().success();
+    let mut args = Cli::from_command(command::Command::Build(BuildOptions {
+        path: Some(fixture.path.clone()),
+        out_dir: "dist".into(),
+        ..Default::default()
+    }));
+    args.install_cache = Some(fixture.cache_dir().clone().to_string_lossy().to_string());
+    command::run_command(&args).unwrap();
 }
 
 #[test]
-fn it_should_not_make_a_pkg_json_if_passed_no_pack() {
+fn it_should_not_make_a_pkg_json() {
     let fixture = utils::fixture::js_hello_world();
-    fixture
-        .wasm_js()
-        .arg("build")
-        .arg("--no-pack")
-        .assert()
-        .success();
+    fixture.wasm_js().arg("build").assert().success();
 
-    let pkg_path = fixture.path.join("pkg");
+    let pkg_path = fixture.path.join("dist");
     assert_eq!(pkg_path.join("package.json").exists(), false);
     assert_eq!(pkg_path.join("README.md").exists(), false);
     assert_eq!(pkg_path.join("licence").exists(), false);
@@ -84,55 +88,6 @@ fn renamed_crate_name_works() {
         )
         .install_local_wasm_bindgen();
     fixture.wasm_js().arg("build").assert().success();
-}
-
-#[test]
-fn dash_dash_web_target_has_error_on_old_bindgen() {
-    let fixture = utils::fixture::Fixture::new();
-    fixture
-        .readme()
-        .file(
-            "Cargo.toml",
-            r#"
-                [package]
-                name = "foo"
-                version = "0.1.0"
-                authors = []
-
-                [lib]
-                crate-type = ["cdylib"]
-                name = 'bar'
-
-                [dependencies]
-                wasm-bindgen = "=0.2.37"
-            "#,
-        )
-        .file(
-            "src/lib.rs",
-            r#"
-                extern crate wasm_bindgen;
-                use wasm_bindgen::prelude::*;
-
-                #[wasm_bindgen]
-                pub fn one() -> u32 { 1 }
-            "#,
-        )
-        .install_local_wasm_bindgen();
-    let cmd = fixture
-        .wasm_js()
-        .arg("build")
-        .arg("--target")
-        .arg("web")
-        .assert()
-        .failure();
-    let output = String::from_utf8(cmd.get_output().stderr.clone()).unwrap();
-
-    assert!(
-        output.contains("Please update your project to wasm-bindgen version >= 0.2.39")
-            || output.contains("older versions of the `wasm-bindgen` crate are incompatible with current versions of Rust"),
-        "Output did not contain 'Please update your project to wasm-bindgen version >= 0.2.39' or 'older versions of the `wasm-bindgen` crate are incompatible with current versions of Rust', output was {}",
-        output
-    );
 }
 
 #[test]
@@ -240,7 +195,7 @@ fn build_with_and_without_wasm_bindgen_debug() {
             .assert()
             .success();
 
-        let contents = fs::read_to_string(fixture.path.join("pkg/whatever_bg.js")).unwrap();
+        let contents = fs::read_to_string(fixture.path.join("dist/whatever_bg.js")).unwrap();
         let contains_move_assertions =
             contents.contains("throw new Error('Attempt to use a moved value')");
         assert_eq!(

@@ -1,16 +1,15 @@
 use binary_install::Cache;
-use lazy_static::lazy_static;
-use wasm_js::install;
-use wasm_js::install::Tool;
-use wasm_js::wasm_opt;
 use std::env;
 use std::fs;
 use std::mem::ManuallyDrop;
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
-use std::sync::{MutexGuard, Once};
+use std::process::Command;
+use std::sync::Once;
 use std::thread;
 use tempfile::TempDir;
+use wasm_js::install;
+use wasm_js::install::Tool;
+use wasm_js::wasm_opt;
 
 /// A test fixture in a temporary directory.
 pub struct Fixture {
@@ -66,54 +65,6 @@ impl Fixture {
             r#"
                 # Fixture!
                 > an example rust -> wasm project
-            "#,
-        )
-    }
-
-    /// Add `LICENSE` file to the fixture.
-    pub fn license(&self) -> &Self {
-        self.file(
-            "LICENSE",
-            r#"
-                I'm a license!
-            "#,
-        )
-    }
-
-    /// Add `WTFPL LICENSE` file to the fixture.
-    pub fn wtfpl_license(&self) -> &Self {
-        self.file(
-            "LICENSE-WTFPL",
-            r#"
-                DO WHATEVER YOU WANT TO PUBLIC LICENSE
-                    Version 2, December 2004
-
-                Copyright (C) 2004 Sam Hocevar <sam@hocevar.net>
-
-                Everyone is permitted to copy and distribute verbatim or modified
-                copies of this license document, and changing it is allowed as long
-                as the name is changed.
-
-                DO WHATEVER YOU WANT TO PUBLIC LICENSE
-                TERMS AND CONDITIONS FOR COPYING, DISTRIBUTION AND MODIFICATION
-
-                0. You just DO WHATEVER YOU WANT TO.
-            "#,
-        )
-    }
-
-    /// Add `MIT LICENSE` file to the fixture.
-    pub fn mit_license(&self) -> &Self {
-        self.file(
-            "LICENSE-MIT",
-            r#"
-                Copyright <YEAR> <COPYRIGHT HOLDER>
-
-                Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-
-                The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-
-                THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
             "#,
         )
     }
@@ -194,37 +145,6 @@ impl Fixture {
         )
     }
 
-    /// Add a `Cargo.toml` with a correctly configured `wasm-bindgen`
-    /// dependency, `wasm-bindgen-test` dev-dependency, and `crate-type =
-    /// ["cdylib"]`.
-    ///
-    /// `name` is the crate's name.
-    /// `license_file` is license file path
-    pub fn cargo_toml_with_license_file(&self, name: &str, license_file: &str) -> &Self {
-        self.file(
-            "Cargo.toml",
-            &format!(
-                r#"
-                    [package]
-                    description = "so awesome rust+wasm package"
-                    name = "{}"
-                    license-file = "{}"
-                    version = "0.1.0"
-
-                    [lib]
-                    crate-type = ["cdylib"]
-
-                    [dependencies]
-                    wasm-bindgen = "=0.2.21"
-
-                    [dev-dependencies]
-                    wasm-bindgen-test = "=0.2.21"
-                "#,
-                name, license_file
-            ),
-        )
-    }
-
     /// Add a `src/lib.rs` file that contains a "hello world" program.
     pub fn hello_world_src_lib(&self) -> &Self {
         self.file(
@@ -293,36 +213,6 @@ impl Fixture {
         });
     }
 
-    /// Install a local cargo-generate for this fixture.
-    ///
-    /// Takes care not to re-install for every fixture, but only the one time
-    /// for the whole test suite.
-    pub fn install_local_cargo_generate(&self) -> PathBuf {
-        static INSTALL_CARGO_GENERATE: Once = Once::new();
-        let cache = self.cache();
-
-        let download = || {
-            if let Ok(download) =
-                install::download_prebuilt(&Tool::CargoGenerate, &cache, "latest", true)
-            {
-                return Ok(download);
-            }
-
-            install::cargo_install(Tool::CargoGenerate, &cache, "latest", true)
-        };
-
-        // Only one thread can perform the actual download, and then afterwards
-        // everything will hit the cache so we can run the same path.
-        INSTALL_CARGO_GENERATE.call_once(|| {
-            download().unwrap();
-        });
-        if let install::Status::Found(dl) = download().unwrap() {
-            dl.binary("cargo-generate").unwrap()
-        } else {
-            panic!("Download failed")
-        }
-    }
-
     pub fn cache_dir(&self) -> PathBuf {
         Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("target")
@@ -335,43 +225,19 @@ impl Fixture {
         Cache::at(&cache_dir)
     }
 
-    /// The `step_install_wasm_bindgen` and `step_run_wasm_bindgen` steps only
-    /// occur after the `step_build_wasm` step. In order to read the lockfile
-    /// in the test fixture's temporary directory, we should first build the
-    /// crate, targeting `wasm32-unknown-unknown`.
-    pub fn cargo_check(&self) -> &Self {
-        Command::new("cargo")
-            .current_dir(&self.path)
-            .arg("check")
-            .arg("--target")
-            .arg("wasm32-unknown-unknown")
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .status()
-            .unwrap();
-        self
-    }
-
     /// Get a command configured to run in this fixure's temp
     /// directory and using the test cache.
     pub fn wasm_js(&self) -> Command {
         use assert_cmd::prelude::*;
         let mut cmd = Command::cargo_bin(env!("CARGO_PKG_NAME")).unwrap();
         cmd.current_dir(&self.path);
-        cmd.env("WASM_PACK_CACHE", self.cache_dir());
+        cmd.arg("--install-cache");
+        cmd.arg(self.cache_dir());
 
         // Some of the tests assume that Cargo's output does not contain colors.
         cmd.env_remove("CARGO_TERM_COLOR");
 
         cmd
-    }
-
-    pub fn lock(&self) -> MutexGuard<'static, ()> {
-        use std::sync::Mutex;
-        lazy_static! {
-            static ref ONE_TEST_AT_A_TIME: Mutex<()> = Mutex::new(());
-        }
-        ONE_TEST_AT_A_TIME.lock().unwrap_or_else(|e| e.into_inner())
     }
 }
 
@@ -381,25 +247,6 @@ impl Drop for Fixture {
             unsafe { ManuallyDrop::drop(&mut self.dir) }
         }
     }
-}
-
-pub fn bad_cargo_toml() -> Fixture {
-    let fixture = Fixture::new();
-    fixture.readme().hello_world_src_lib().file(
-        "Cargo.toml",
-        r#"
-            [package]
-            name = "bad-cargo-toml"
-            version = "0.1.0"
-
-            [lib]
-            crate-type = ["foo"]
-
-            [dependencies]
-            # Note: no wasm-bindgen dependency!
-        "#,
-    );
-    fixture
 }
 
 pub fn js_hello_world() -> Fixture {
@@ -420,169 +267,9 @@ pub fn js_hello_world_with_custom_profile(profile_name: &str) -> Fixture {
     fixture
 }
 
-pub fn no_cdylib() -> Fixture {
-    let fixture = Fixture::new();
-    fixture.readme().hello_world_src_lib().file(
-        "Cargo.toml",
-        r#"
-            [package]
-            description = "so awesome rust+wasm package"
-            license = "WTFPL"
-            name = "foo"
-            version = "0.1.0"
-
-            # [lib]
-            # crate-type = ["cdylib"]
-
-            [dependencies]
-            wasm-bindgen = "0.2"
-
-            [dev-dependencies]
-            wasm-bindgen-test = "0.3"
-        "#,
-    );
-    fixture
-}
-
 pub fn not_a_crate() -> Fixture {
     let fixture = Fixture::new();
     fixture.file("README.md", "This is not a Rust crate!");
-    fixture
-}
-
-pub fn serde_feature() -> Fixture {
-    let fixture = Fixture::new();
-    fixture.readme().hello_world_src_lib().file(
-        "Cargo.toml",
-        r#"
-            [package]
-            name = "serde-serialize"
-            version = "0.1.0"
-
-            [lib]
-            crate-type = ["cdylib"]
-
-            [dependencies.wasm-bindgen]
-            version = "^0.2"
-            features = ["serde-serialize"]
-        "#,
-    );
-    fixture
-}
-
-pub fn wbg_test_diff_versions() -> Fixture {
-    let fixture = Fixture::new();
-    fixture
-        .readme()
-        .file(
-            "Cargo.toml",
-            r#"
-                [package]
-                name = "wbg-test-diff-versions"
-                version = "0.1.0"
-
-                [lib]
-                crate-type = ["cdylib", "rlib"]
-
-                [dependencies]
-                # We depend on the latest wasm-bindgen 0.2
-                wasm-bindgen = "0.2"
-
-                [dev-dependencies]
-                # And we depend on wasm-bindgen-test 0.2.29. This should still
-                # work, and we should end up with the latest `wasm-bindgen` and
-                # wasm-bindgen-test at 0.2.29, and everything should still work.
-                wasm-bindgen-test = "0.2.29"
-            "#,
-        )
-        .file(
-            "src/lib.rs",
-            r#"
-                extern crate wasm_bindgen;
-                use wasm_bindgen::prelude::*;
-
-                #[wasm_bindgen]
-                pub fn one() -> u32 { 1 }
-            "#,
-        )
-        .file(
-            "tests/node.rs",
-            r#"
-                extern crate wbg_test_diff_versions;
-                extern crate wasm_bindgen_test;
-                use wasm_bindgen_test::*;
-
-                #[wasm_bindgen_test]
-                fn pass() {
-                    assert_eq!(wbg_test_diff_versions::one(), 1);
-                }
-            "#,
-        );
-    fixture
-}
-
-pub fn wbg_test_browser() -> Fixture {
-    let fixture = Fixture::new();
-    fixture
-        .readme()
-        .cargo_toml("wbg-test-browser")
-        .hello_world_src_lib()
-        .file(
-            "tests/browser.rs",
-            r#"
-                extern crate wasm_bindgen_test;
-                use wasm_bindgen_test::*;
-
-                wasm_bindgen_test_configure!(run_in_browser);
-
-                #[wasm_bindgen_test]
-                fn pass() {
-                    assert_eq!(1, 1);
-                }
-            "#,
-        );
-    fixture
-}
-
-pub fn wbg_test_fail() -> Fixture {
-    let fixture = Fixture::new();
-    fixture
-        .readme()
-        .cargo_toml("wbg-test-fail")
-        .hello_world_src_lib()
-        .file(
-            "tests/node.rs",
-            r#"
-                extern crate wasm_bindgen_test;
-                use wasm_bindgen_test::*;
-
-                #[wasm_bindgen_test]
-                fn pass() {
-                    assert_eq!(1, 2);
-                }
-            "#,
-        );
-    fixture
-}
-
-pub fn wbg_test_node() -> Fixture {
-    let fixture = Fixture::new();
-    fixture
-        .readme()
-        .cargo_toml("wbg-test-node")
-        .hello_world_src_lib()
-        .file(
-            "tests/node.rs",
-            r#"
-                extern crate wasm_bindgen_test;
-                use wasm_bindgen_test::*;
-
-                #[wasm_bindgen_test]
-                fn pass() {
-                    assert_eq!(1, 1);
-                }
-            "#,
-        );
     fixture
 }
 
@@ -730,36 +417,5 @@ pub fn transitive_dependencies() -> Fixture {
     project_b_fixture(&mut fixture);
     project_a_fixture(&mut fixture);
     project_main_fixture(&mut fixture);
-    fixture
-}
-
-pub fn single_license() -> Fixture {
-    let fixture = Fixture::new();
-    fixture
-        .readme()
-        .cargo_toml("single_license")
-        .license()
-        .hello_world_src_lib();
-    fixture
-}
-
-pub fn dual_license() -> Fixture {
-    let fixture = Fixture::new();
-    fixture
-        .readme()
-        .cargo_toml("dual_license")
-        .wtfpl_license()
-        .mit_license()
-        .hello_world_src_lib();
-    fixture
-}
-
-pub fn non_standard_license(license_file: &str) -> Fixture {
-    let fixture = Fixture::new();
-    fixture
-        .readme()
-        .cargo_toml_with_license_file("dual_license", license_file)
-        .file(license_file, "license file for test")
-        .hello_world_src_lib();
     fixture
 }

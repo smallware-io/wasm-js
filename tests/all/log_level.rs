@@ -11,7 +11,7 @@ fn matches_info() -> impl Predicate<str> + PredicateReflection {
         .and(contains("[INFO]: License key is set in Cargo.toml but no LICENSE file(s) were found; Please add the LICENSE file(s) to your project directory"))
         .and(contains("[INFO]: Optimizing wasm binaries with `wasm-opt`..."))
         .and(contains(format!("[INFO]: Done in ")))
-        .and(contains(format!("[INFO]: Your wasm pkg is ready to publish at ")))
+        .and(contains(format!("[INFO]: Javascript files created in ")))
 }
 
 fn matches_cargo() -> impl Predicate<str> + PredicateReflection {

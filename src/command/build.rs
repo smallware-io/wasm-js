@@ -1,23 +1,27 @@
 use crate::bindgen;
 use crate::build;
-use crate::command::utils::{create_pkg_dir, get_crate_path};
 use crate::install::{self, InstallMode, Tool};
+use crate::js_bin::WasmJsWriter;
 use crate::lockfile::Lockfile;
 use crate::manifest;
+use crate::utils::*;
 use crate::wasm_opt;
 use crate::PBAR;
-use anyhow::{anyhow, bail, Error, Result};
+
+use anyhow::{anyhow, bail, Result};
 use binary_install::Cache;
 use clap::Args;
 use log::info;
 use path_clean::PathClean;
-use std::fmt;
+use std::fs;
+use std::fs::File;
+use std::io::BufWriter;
+use std::io::Write;
+use std::path::Path;
 use std::path::PathBuf;
-use std::str::FromStr;
 use std::time::Instant;
 
 /// Everything required to configure and run the `wasm-js build` command.
-#[allow(missing_docs)]
 pub struct Build {
     pub crate_path: PathBuf,
     pub crate_data: manifest::CrateData,
@@ -25,8 +29,6 @@ pub struct Build {
     pub disable_dts: bool,
     pub weak_refs: bool,
     pub reference_types: bool,
-    pub target: Target,
-    pub no_pack: bool,
     pub no_opt: bool,
     pub profile: BuildProfile,
     pub mode: InstallMode,
@@ -35,61 +37,6 @@ pub struct Build {
     pub bindgen: Option<install::Status>,
     pub cache: Cache,
     pub extra_options: Vec<String>,
-}
-
-/// What sort of output we're going to be generating and flags we're invoking
-/// `wasm-bindgen` with.
-#[derive(Clone, Copy, Debug)]
-pub enum Target {
-    /// Default output mode or `--target bundler`, indicates output will be
-    /// used with a bundle in a later step.
-    Bundler,
-    /// Correspond to `--target web` where the output is natively usable as an
-    /// ES module in a browser and the wasm is manually instantiated.
-    Web,
-    /// Correspond to `--target nodejs` where the output is natively usable as
-    /// a Node.js module loaded with `require`.
-    Nodejs,
-    /// Correspond to `--target no-modules` where the output is natively usable
-    /// in a browser but pollutes the global namespace and must be manually
-    /// instantiated.
-    NoModules,
-    /// Correspond to `--target deno` where the output is natively usable as
-    /// a Deno module loaded with `import`.
-    Deno,
-}
-
-impl Default for Target {
-    fn default() -> Target {
-        Target::Bundler
-    }
-}
-
-impl fmt::Display for Target {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let s = match self {
-            Target::Bundler => "bundler",
-            Target::Web => "web",
-            Target::Nodejs => "nodejs",
-            Target::NoModules => "no-modules",
-            Target::Deno => "deno",
-        };
-        write!(f, "{}", s)
-    }
-}
-
-impl FromStr for Target {
-    type Err = Error;
-    fn from_str(s: &str) -> Result<Self> {
-        match s {
-            "bundler" | "browser" => Ok(Target::Bundler),
-            "web" => Ok(Target::Web),
-            "nodejs" => Ok(Target::Nodejs),
-            "no-modules" => Ok(Target::NoModules),
-            "deno" => Ok(Target::Deno),
-            _ => bail!("Unknown target: {}", s),
-        }
-    }
 }
 
 /// The build profile controls whether optimizations, debug info, and assertions
@@ -135,10 +82,6 @@ pub struct BuildOptions {
     /// Enable usage of WebAssembly reference types.
     pub reference_types: bool,
 
-    #[clap(long = "target", short = 't', default_value = "bundler")]
-    /// Sets the target environment. [possible values: bundler, nodejs, web, no-modules, deno]
-    pub target: Target,
-
     #[clap(long = "debug")]
     /// Deprecated. Renamed to `--dev`.
     pub debug: bool,
@@ -160,17 +103,13 @@ pub struct BuildOptions {
     /// User-defined profile with --profile flag
     pub profile: Option<String>,
 
-    #[clap(long = "out-dir", short = 'd', default_value = "pkg")]
+    #[clap(long = "out-dir", short = 'd', default_value = "dist")]
     /// Sets the output directory with a relative path.
     pub out_dir: String,
 
     #[clap(long = "out-name")]
     /// Sets the output file names. Defaults to package name.
     pub out_name: Option<String>,
-
-    #[clap(long = "no-pack", alias = "no-package")]
-    /// Option to not generate a package.json
-    pub no_pack: bool,
 
     #[clap(long = "no-opt", alias = "no-optimization")]
     /// Option to skip optimization with wasm-opt
@@ -189,10 +128,8 @@ impl Default for BuildOptions {
             disable_dts: false,
             weak_refs: false,
             reference_types: false,
-            target: Target::default(),
             debug: false,
             dev: false,
-            no_pack: false,
             no_opt: false,
             release: false,
             profiling: false,
@@ -204,34 +141,32 @@ impl Default for BuildOptions {
     }
 }
 
-type BuildStep = fn(&mut Build) -> Result<()>;
-
 impl Build {
     /// Construct a build command from the given options.
-    pub fn try_from_opts(mut build_opts: BuildOptions) -> Result<Self> {
+    pub fn try_from_opts(args: &crate::Cli, build_opts: &BuildOptions) -> Result<Self> {
+        let mut extra_options: Vec<String> = build_opts.extra_options.clone();
+        let mut path_arg = build_opts.path.clone();
         if let Some(path) = &build_opts.path {
             if path.to_string_lossy().starts_with("--") {
-                let path = build_opts.path.take().unwrap();
-                build_opts
-                    .extra_options
-                    .insert(0, path.to_string_lossy().into_owned());
+                let path = path_arg.take().unwrap();
+                extra_options.insert(0, path.to_string_lossy().into_owned());
             }
         }
-        let crate_path = get_crate_path(build_opts.path)?;
+        let crate_path = get_crate_path(path_arg)?;
         let crate_data = manifest::CrateData::new(&crate_path, build_opts.out_name.clone())?;
-        let out_dir = crate_path.join(PathBuf::from(build_opts.out_dir)).clean();
+        let out_dir = crate_path.join(PathBuf::from(&build_opts.out_dir)).clean();
 
         let dev = build_opts.dev || build_opts.debug;
         let profile = match (
             dev,
             build_opts.release,
             build_opts.profiling,
-            build_opts.profile,
+            &build_opts.profile,
         ) {
             (false, false, false, None) | (false, true, false, None) => BuildProfile::Release,
             (true, false, false, None) => BuildProfile::Dev,
             (false, false, true, None) => BuildProfile::Profiling,
-            (false, false, false, Some(profile)) => BuildProfile::Custom(profile),
+            (false, false, false, Some(profile)) => BuildProfile::Custom(profile.clone()),
             // Unfortunately, `clap` doesn't expose clap's `conflicts_with`
             // functionality yet, so we have to implement it ourselves.
             _ => bail!("Can only supply one of the --dev, --release, --profiling, or --profile 'name' flags"),
@@ -240,20 +175,18 @@ impl Build {
         Ok(Build {
             crate_path,
             crate_data,
-            scope: build_opts.scope,
+            scope: build_opts.scope.clone(),
             disable_dts: build_opts.disable_dts,
             weak_refs: build_opts.weak_refs,
             reference_types: build_opts.reference_types,
-            target: build_opts.target,
-            no_pack: build_opts.no_pack,
             no_opt: build_opts.no_opt,
             profile,
             mode: build_opts.mode,
             out_dir,
-            out_name: build_opts.out_name,
+            out_name: build_opts.out_name.clone(),
             bindgen: None,
-            cache: Cache::new("wasm-js")?,
-            extra_options: build_opts.extra_options,
+            cache: get_install_cache(&args.install_cache)?,
+            extra_options: extra_options,
         })
     }
 
@@ -264,75 +197,35 @@ impl Build {
 
     /// Execute this `Build` command.
     pub fn run(&mut self) -> Result<()> {
-        let process_steps = Build::get_process_steps(self.mode, self.no_pack, self.no_opt);
-
         let started = Instant::now();
 
-        for (_, process_step) in process_steps {
-            process_step(self)?;
+        if self.mode != InstallMode::Force {
+            self.step_check_rustc_version()?;
+            self.step_check_crate_config()?;
+            self.step_check_for_wasm_target()?;
         }
 
-        let duration = crate::command::utils::elapsed(started.elapsed());
+        self.step_build_wasm()?;
+        self.step_create_dir()?;
+        self.step_install_wasm_bindgen()?;
+        let temp_dir = self.step_run_wasm_bindgen()?;
+
+        if !self.no_opt {
+            self.step_run_wasm_opt()?;
+        }
+        self.step_transform_wasm(&temp_dir)?;
+
+        let duration = elapsed(started.elapsed());
         info!("Done in {}.", &duration);
-        info!(
-            "Your wasm pkg is ready to publish at {}.",
-            self.out_dir.display()
-        );
+        info!("Javascript files created in {}.", self.out_dir.display());
 
         PBAR.info(&format!("Done in {}", &duration));
 
         PBAR.info(&format!(
-            "Your wasm pkg is ready to publish at {}.",
+            "Javascript files created in {}.",
             self.out_dir.display()
         ));
         Ok(())
-    }
-
-    fn get_process_steps(
-        mode: InstallMode,
-        no_pack: bool,
-        no_opt: bool,
-    ) -> Vec<(&'static str, BuildStep)> {
-        macro_rules! steps {
-            ($($name:ident),+) => {
-                {
-                let mut steps: Vec<(&'static str, BuildStep)> = Vec::new();
-                    $(steps.push((stringify!($name), Build::$name));)*
-                        steps
-                    }
-                };
-            ($($name:ident,)*) => (steps![$($name),*])
-        }
-        let mut steps = Vec::new();
-        match &mode {
-            InstallMode::Force => {}
-            _ => {
-                steps.extend(steps![
-                    step_check_rustc_version,
-                    step_check_crate_config,
-                    step_check_for_wasm_target,
-                ]);
-            }
-        }
-
-        steps.extend(steps![
-            step_build_wasm,
-            step_create_dir,
-            step_install_wasm_bindgen,
-            step_run_wasm_bindgen,
-        ]);
-
-        if !no_opt {
-            steps.extend(steps![step_run_wasm_opt]);
-        }
-
-        if !no_pack {
-            steps.extend(steps![
-                step_create_json,
-            ]);
-        }
-
-        steps
     }
 
     fn step_check_rustc_version(&mut self) -> Result<()> {
@@ -373,23 +266,9 @@ impl Build {
     }
 
     fn step_create_dir(&mut self) -> Result<()> {
-        info!("Creating a pkg directory...");
-        create_pkg_dir(&self.out_dir)?;
-        info!("Created a pkg directory at {:#?}.", &self.crate_path);
-        Ok(())
-    }
-
-    fn step_create_json(&mut self) -> Result<()> {
-        self.crate_data.write_package_json(
-            &self.out_dir,
-            &self.scope,
-            self.disable_dts,
-            self.target,
-        )?;
-        info!(
-            "Wrote a package.json at {:#?}.",
-            &self.out_dir.join("package.json")
-        );
+        info!("Creating a dist directory...");
+        create_output_dir(&self.out_dir)?;
+        info!("Created a dist directory at {:#?}.", &self.crate_path);
         Ok(())
     }
 
@@ -409,22 +288,20 @@ impl Build {
         Ok(())
     }
 
-    fn step_run_wasm_bindgen(&mut self) -> Result<()> {
+    fn step_run_wasm_bindgen(&mut self) -> Result<PathBuf> {
         info!("Building the wasm bindings...");
-        bindgen::wasm_bindgen_build(
+        let temp_dir = bindgen::wasm_bindgen_build(
             &self.crate_data,
             self.bindgen.as_ref().unwrap(),
-            &self.out_dir,
             &self.out_name,
             self.disable_dts,
             self.weak_refs,
             self.reference_types,
-            self.target,
             self.profile.clone(),
             &self.extra_options,
         )?;
-        info!("wasm bindings were built at {:#?}.", &self.out_dir);
-        Ok(())
+        info!("wasm bindings were built at {:#?}.", &temp_dir);
+        Ok(temp_dir)
     }
 
     fn step_run_wasm_opt(&mut self) -> Result<()> {
@@ -450,5 +327,60 @@ impl Build {
                 "{}\nTo disable `wasm-opt`, add `wasm-opt = false` to your package metadata in your `Cargo.toml`.", e
             )
         })
+    }
+
+    fn step_transform_wasm(&mut self, temp_dir: &Path) -> Result<()> {
+        let name_prefix = self.crate_data.name_prefix();
+        let wasm_filename = format!("{}_bg.wasm", name_prefix);
+        let imports_filename = format!("{}_bg.js", name_prefix);
+        let types_filename = format!("{}.d.ts", name_prefix);
+        let module_filename = format!("{}.js", name_prefix);
+        let imports_module = format!("./{}", imports_filename);
+        // convert wasm to JS
+        {
+            let mut outfile = File::create(self.out_dir.join(module_filename))?;
+            {
+                let mut outbw = BufWriter::new(&mut outfile);
+                let mut wasm_writer = WasmJsWriter::new(&mut outbw, &imports_module);
+                let input_path = temp_dir.join(wasm_filename);
+                read_and_deflate(&mut wasm_writer, &input_path)?;
+                wasm_writer.flush()?;
+            }
+            outfile.sync_all()?;
+        }
+        fs::copy(
+            temp_dir.join(&imports_filename),
+            self.out_dir.join(&imports_filename),
+        )?;
+        // transform types file
+        {
+            let types_text = fs::read(temp_dir.join(&types_filename))?;
+            let mut outfile = File::create(self.out_dir.join(&types_filename))?;
+            {
+                let mut outbw = BufWriter::new(&mut outfile);
+                outbw.write_all(
+                    "/* tslint:disable */\n/* eslint-disable */\ndeclare namespace WasmDecls {\n"
+                        .to_os_bytes()
+                        .as_ref(),
+                )?;
+                outbw.write_all(&types_text)?;
+                outbw.write_all(
+                    "\n}\nexport type WasmExports = typeof WasmDecls;\nexport function getWasm(): Promise<typeof WasmExports>;\n"
+                        .to_os_bytes()
+                        .as_ref(),
+                )?;
+                outbw.flush()?;
+            }
+            outfile.sync_all()?;
+        }
+
+        for file in self.out_dir.read_dir()? {
+            let file = file?;
+            let path = file.path();
+            let extension = path.extension().and_then(|s| s.to_str());
+            if extension == Some("wasm") {}
+        }
+
+        Ok(())
     }
 }

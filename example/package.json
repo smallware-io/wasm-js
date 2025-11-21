@@ -1,0 +1,30 @@
+{
+  "name": "wasm-js-example",
+  "version": "0.1.0",
+  "description": "Example Typescript package with WASM code",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "type": "module",
+  "files": [
+    "dist/*"
+  ],
+  "scripts": {
+    "build": "../target/debug/wasm-js build && tsc",
+    "hello": "tsx src/hello_world.ts",
+    "hello2": "ts-node dist/hello_world.js",
+    "demo": "node dist/demo.js",
+    "prepublishOnly": "npm run build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/smallware-io/wasm-js.git"
+  },
+  "author": "Matt Timmermans <matt@timmermans.org>",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.20.6",
+    "typescript": "^5.0.0"
+  }
+}

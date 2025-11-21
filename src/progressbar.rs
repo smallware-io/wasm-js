@@ -81,11 +81,7 @@ impl ProgressOutput {
     /// Add a warning message.
     pub fn warn(&self, message: &str) {
         if !self.quiet() && self.is_log_enabled(LogLevel::Warn) {
-            let warn = format!(
-                "{}: {}",
-                style("[WARN]").bold().dim(),
-                message
-            );
+            let warn = format!("{}: {}", style("[WARN]").bold().dim(), message);
             self.message(&warn);
         }
     }
@@ -93,11 +89,7 @@ impl ProgressOutput {
     /// Add an error message.
     pub fn error(&self, message: &str) {
         if self.is_log_enabled(LogLevel::Error) {
-            let err = format!(
-                "{}: {}",
-                style("[ERR]").bold().dim(),
-                message
-            );
+            let err = format!("{}: {}", style("[ERR]").bold().dim(), message);
             self.message(&err);
         }
     }

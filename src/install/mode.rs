@@ -3,7 +3,7 @@ use std::str::FromStr;
 
 /// The `InstallMode` determines which mode of initialization we are running, and
 /// what install steps we perform.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum InstallMode {
     /// Perform all the install steps.
     Normal,

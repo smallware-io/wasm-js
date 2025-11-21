@@ -3,10 +3,11 @@
 use std::fs;
 use std::path::PathBuf;
 
-use crate::manifest::CrateData;
 use anyhow::{anyhow, bail, Context, Result};
 use console::style;
 use toml;
+
+use crate::manifest::CrateData;
 
 /// This struct represents the contents of `Cargo.lock`.
 #[derive(Clone, Debug, Deserialize)]

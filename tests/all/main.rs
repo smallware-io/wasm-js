@@ -1,10 +1,9 @@
 extern crate anyhow;
 extern crate assert_cmd;
+extern crate binary_install;
 extern crate lazy_static;
 extern crate predicates;
-#[macro_use]
 extern crate serde_derive;
-extern crate binary_install;
 extern crate serde_json;
 #[macro_use]
 extern crate serial_test;

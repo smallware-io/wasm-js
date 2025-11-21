@@ -1,9 +1,16 @@
 //! Utility functions for commands.
 use anyhow::Result;
-use std::fs;
+use flate2::write::DeflateEncoder;
+use flate2::Compression;
+use std::fs::{self, File};
+use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
-use walkdir::WalkDir;
+
+#[cfg(windows)]
+const SYS_LINE_ENDING: &'static str = "\r\n";
+#[cfg(not(windows))]
+const SYS_LINE_ENDING: &'static str = "\n";
 
 /// If an explicit path is given, then use it, otherwise assume the current
 /// directory is the crate path.
@@ -33,29 +40,19 @@ fn find_manifest_from_cwd() -> Result<PathBuf> {
     }
 }
 
-/// Construct our `pkg` directory in the crate.
-pub fn create_pkg_dir(out_dir: &Path) -> Result<()> {
-    let _ = fs::remove_file(out_dir.join("package.json")); // Clean up package.json from previous runs
+/// Construct our `dist` directory in the crate.
+pub fn create_output_dir(out_dir: &Path) -> Result<()> {
     fs::create_dir_all(&out_dir)?;
-    fs::write(out_dir.join(".gitignore"), "*")?;
     Ok(())
 }
 
-/// Locates the pkg directory from a specific path
-/// Returns None if unable to find the 'pkg' directory
-pub fn find_pkg_directory(path: &Path, pkg_directory: &Path) -> Option<PathBuf> {
-    if is_pkg_directory(path, pkg_directory) {
-        return Some(path.to_owned());
+/// Get wasm-pack's binary cache.
+pub fn get_install_cache(spec: &Option<String>) -> Result<binary_install::Cache> {
+    if let Some(path) = spec {
+        Ok(binary_install::Cache::at(Path::new(&path)))
+    } else {
+        binary_install::Cache::new("wasm-js")
     }
-
-    WalkDir::new(path)
-        .into_iter()
-        .filter_map(|x| x.ok().map(|e| e.into_path()))
-        .find(|x| is_pkg_directory(&x, pkg_directory))
-}
-
-fn is_pkg_directory(path: &Path, pkg_directory: &Path) -> bool {
-    path.exists() && path.is_dir() && path.ends_with(pkg_directory)
 }
 
 /// Render a `Duration` to a form suitable for display on a console
@@ -66,5 +63,29 @@ pub fn elapsed(duration: Duration) -> String {
         format!("{}m {:02}s", secs / 60, secs % 60)
     } else {
         format!("{}.{:02}s", secs, duration.subsec_nanos() / 10_000_000)
+    }
+}
+
+/// Reads a file from `input_path` and returns its contents compressed using DEFLATE
+/// as an in-memory vector of bytes (`Vec<u8>`).
+pub fn read_and_deflate<W: Write>(out: W, input_path: &Path) -> Result<()> {
+    let mut encoder = DeflateEncoder::new(out, Compression::best());
+    let mut input_file = File::open(input_path)?;
+    io::copy(&mut input_file, &mut encoder)?;
+    encoder.finish()?;
+    Ok(())
+}
+
+pub trait StrUtils {
+    fn to_os_bytes(self: &Self) -> Vec<u8>;
+}
+
+impl StrUtils for str {
+    fn to_os_bytes(self: &Self) -> Vec<u8> {
+        self.replace("\r\n", "\n")
+            .replace("\r", "\n")
+            .replace("\n", SYS_LINE_ENDING)
+            .as_bytes()
+            .to_vec()
     }
 }

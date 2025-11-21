@@ -21,13 +21,14 @@ pub mod build;
 pub mod child;
 pub mod command;
 pub mod install;
-pub mod license;
+pub mod js_bin;
 pub mod lockfile;
 pub mod manifest;
 pub mod progressbar;
 pub mod stamps;
 pub mod target;
 pub mod test;
+pub mod utils;
 pub mod wasm_opt;
 
 use crate::progressbar::{LogLevel, ProgressOutput};
@@ -37,7 +38,6 @@ use clap::Parser;
 /// The global progress bar and user-facing message output.
 pub static PBAR: ProgressOutput = ProgressOutput::new();
 
-/// 📦 ✨  pack and publish your wasm!
 #[derive(Debug, Parser)]
 #[command(version)]
 pub struct Cli {
@@ -56,4 +56,20 @@ pub struct Cli {
     #[clap(long = "log-level", default_value = "info")]
     /// The maximum level of messages that should be logged by
     pub log_level: LogLevel,
+
+    #[clap(long = "install-cache")]
+    /// Sets the location of the binary install cache
+    pub install_cache: Option<String>,
+}
+
+impl Cli {
+    pub fn from_command(cmd: command::Command) -> Self {
+        Self {
+            cmd,
+            verbosity: 0,
+            quiet: false,
+            log_level: LogLevel::Info,
+            install_cache: None,
+        }
+    }
 }

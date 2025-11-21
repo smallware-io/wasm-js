@@ -12,12 +12,14 @@ documentation = "https://github.com/smallware-io/wasm-js"
 
 [dependencies]
 anyhow = "1.0.68"
+base64 = "0.21"
 binary-install = "0.4.1"
 cargo_metadata = "0.15.2"
 chrono = "0.4.23"
 console = "0.15.5"
 dialoguer = "0.10.3"
 env_logger = { version = "0.10.0", default-features = false }
+flate2 = "1.0"
 glob = "0.3.1"
 human-panic = "1.0.3"
 log = "0.4.17"

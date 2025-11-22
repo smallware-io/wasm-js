@@ -343,7 +343,7 @@ impl Build {
                 let mut outbw = BufWriter::new(&mut outfile);
                 let mut wasm_writer = WasmJsWriter::new(&mut outbw, &imports_module);
                 let input_path = temp_dir.join(wasm_filename);
-                read_and_deflate(&mut wasm_writer, &input_path)?;
+                read_and_compress(&mut wasm_writer, &input_path)?;
                 wasm_writer.flush()?;
             }
             outfile.sync_all()?;

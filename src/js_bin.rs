@@ -5,6 +5,8 @@ use base64::Engine;
 use std::io::{self, Write};
 use std::sync::LazyLock;
 
+const CHUNK_WORDS: usize = 8192;
+
 pub struct WasmJsWriter<W: Write> {
     out: W,
     imports_module: String,
@@ -14,8 +16,6 @@ pub struct WasmJsWriter<W: Write> {
     started: bool,
     finished: bool,
 }
-
-const CHUNK_WORDS: usize = 1024;
 
 static PROLOG: LazyLock<Vec<u8>> = LazyLock::new(|| {
     r#"
@@ -56,7 +56,7 @@ export const WASM_PROMISE = (async () => {
       }
     }
   });
-  const body = compressed.pipeThrough(new DecompressionStream('deflate-raw'));
+  const body = compressed.pipeThrough(new DecompressionStream('deflate'));
   const response = new Response(body,
   {
     status: 200,

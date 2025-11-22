@@ -1,6 +1,6 @@
 //! Utility functions for commands.
 use anyhow::Result;
-use flate2::write::DeflateEncoder;
+use flate2::write::ZlibEncoder;
 use flate2::Compression;
 use std::fs::{self, File};
 use std::io::{self, Write};
@@ -68,8 +68,8 @@ pub fn elapsed(duration: Duration) -> String {
 
 /// Reads a file from `input_path` and returns its contents compressed using DEFLATE
 /// as an in-memory vector of bytes (`Vec<u8>`).
-pub fn read_and_deflate<W: Write>(out: W, input_path: &Path) -> Result<()> {
-    let mut encoder = DeflateEncoder::new(out, Compression::best());
+pub fn read_and_compress<W: Write>(out: W, input_path: &Path) -> Result<()> {
+    let mut encoder = ZlibEncoder::new(out, Compression::best());
     let mut input_file = File::open(input_path)?;
     io::copy(&mut input_file, &mut encoder)?;
     encoder.finish()?;

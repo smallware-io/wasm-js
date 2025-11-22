@@ -7,7 +7,7 @@ repository = "https://github.com/smallware-io/wasm-js.git"
 license = "MIT"
 edition = "2021"
 readme = "README.md"
-categories = ["wasm", "javascript"]
+categories = ["wasm", "web-programming"]
 documentation = "https://github.com/smallware-io/wasm-js"
 
 [dependencies]

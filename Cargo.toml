@@ -1,7 +1,7 @@
 [package]
 name = "wasm-js"
 description = "Build rust libraries into vanilla JS that works everywhere"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Matt Timmermans"]
 repository = "https://github.com/smallware-io/wasm-js.git"
 license = "MIT"

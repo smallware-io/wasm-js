@@ -15,7 +15,6 @@ pub fn wasm_bindgen_build(
     data: &CrateData,
     install_status: &install::Status,
     out_name: &Option<String>,
-    disable_dts: bool,
     weak_refs: bool,
     reference_types: bool,
     profile: BuildProfile,
@@ -45,11 +44,7 @@ pub fn wasm_bindgen_build(
     let out_dir_path = target_directory.join("wasm-bindgen");
     let out_dir = out_dir_path.to_str().unwrap();
 
-    let dts_arg = if disable_dts {
-        "--no-typescript"
-    } else {
-        "--typescript"
-    };
+    let dts_arg = "--typescript";
     let bindgen_path = install::get_tool_path(install_status, Tool::WasmBindgen)?
         .binary(&Tool::WasmBindgen.to_string())?;
 

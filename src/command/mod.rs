@@ -10,7 +10,7 @@ use log::info;
 
 #[derive(Debug, Subcommand)]
 pub enum Command {
-    /// 🏗️  build your npm package!
+    /// Compile Web Assembly and Produce Javascript
     #[clap(name = "build")]
     Build(BuildOptions),
 }

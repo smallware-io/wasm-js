@@ -25,8 +25,6 @@ use std::time::Instant;
 pub struct Build {
     pub crate_path: PathBuf,
     pub crate_data: manifest::CrateData,
-    pub scope: Option<String>,
-    pub disable_dts: bool,
     pub weak_refs: bool,
     pub reference_types: bool,
     pub no_opt: bool,
@@ -61,18 +59,9 @@ pub struct BuildOptions {
     #[clap()]
     pub path: Option<PathBuf>,
 
-    /// The npm scope to use in package.json, if any.
-    #[clap(long = "scope", short = 's')]
-    pub scope: Option<String>,
-
     #[clap(long = "mode", short = 'm', default_value = "normal")]
     /// Sets steps to be run. [possible values: no-install, normal, force]
     pub mode: InstallMode,
-
-    #[clap(long = "no-typescript")]
-    /// By default a *.d.ts file is generated for the generated JS file, but
-    /// this flag will disable generating this TypeScript file.
-    pub disable_dts: bool,
 
     #[clap(long = "weak-refs")]
     /// Enable usage of the JS weak references proposal.
@@ -123,9 +112,7 @@ impl Default for BuildOptions {
     fn default() -> Self {
         Self {
             path: None,
-            scope: None,
             mode: InstallMode::default(),
-            disable_dts: false,
             weak_refs: false,
             reference_types: false,
             debug: false,
@@ -175,8 +162,6 @@ impl Build {
         Ok(Build {
             crate_path,
             crate_data,
-            scope: build_opts.scope.clone(),
-            disable_dts: build_opts.disable_dts,
             weak_refs: build_opts.weak_refs,
             reference_types: build_opts.reference_types,
             no_opt: build_opts.no_opt,
@@ -294,7 +279,6 @@ impl Build {
             &self.crate_data,
             self.bindgen.as_ref().unwrap(),
             &self.out_name,
-            self.disable_dts,
             self.weak_refs,
             self.reference_types,
             self.profile.clone(),
@@ -365,7 +349,7 @@ impl Build {
                 )?;
                 outbw.write_all(&types_text)?;
                 outbw.write_all(
-                    "\n}\nexport type WasmExports = typeof WasmDecls;\nexport function getWasm(): Promise<typeof WasmExports>;\n"
+                    "\n}\nexport type WasmExports = typeof WasmDecls;\nexport function getWasm(): Promise<WasmExports>;\n"
                         .to_os_bytes()
                         .as_ref(),
                 )?;

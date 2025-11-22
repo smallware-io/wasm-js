@@ -8,8 +8,6 @@
 
   <h3>
     <a href="https://github.com/smallware-io/wasm-js">Repository</a>
-    <span> | </span>
-    <a href="https://github.com/smallware-io/wasm-js/blob/master/CONTRIBUTING.md">Contributing</a>
   </h3>
 
 <sub>Originally forked from <a href="https://github.com/rustwasm/wasm-pack">wasm-pack</a> by <a href="https://rustwasm.github.io/">The Rust and WebAssembly Working Group</a> and then modified to suit a different purpose.</sub>

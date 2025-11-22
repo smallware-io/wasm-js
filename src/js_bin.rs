@@ -70,9 +70,6 @@ export const WASM_PROMISE = (async () => {
   });
   importObject.__wbg_set_wasm(instance.exports);
   instance.exports.__wbindgen_start();
-  if (importObject.main) {
-    await importObject.main();
-  }
   return importObject;
 })();
 

@@ -5,23 +5,21 @@
 The technical prerequisites for contributing to this project are the same as for
 using it. You can find them documented [here][1].
 
-You'll also want to check out the contributing [guidelines].
-
 [1]: ./prerequisites/index.html
-[guidelines]: https://github.com/drager/wasm-pack/blob/master/CONTRIBUTING.md
 
 ## 🏃‍♀️ Up and Running
 
-1. fork and clone the `rustwasm/wasm-pack` repository
-2. install [node/npm]
-3. `cd wasm-pack`
-4. `cargo run`. To test command line arguments you can run `cargo run -- <args>`.
+1. Fork and clone the `smallware-io/wasm-js` repository
+2. `cd wasm-js`
+3. `cargo run` to build and run the tool. To test command line arguments you can run `cargo run -- <args>`.
 
 ## Documentation
 
-Documentation lives in the `/docs` directory. Each command has its own page.
-Additionally there are extra pages explaining the prerequisites, setup, and how to
-contribute (which you are reading now!).
+Documentation lives in the `/docs` directory. The main documentation files include:
+- Introduction and quickstart guides
+- Build command documentation
+- Cargo.toml configuration reference
+- Prerequisites and setup instructions
 
 ## Tests
 
@@ -40,5 +38,13 @@ cargo run -- <args>
 ...for example:
 
 ```
-cargo run -- init /tests/fixtures/js-hello-world --scope=ag_dubs
+cargo run -- build --dev
 ```
+
+## Project Structure
+
+`wasm-js` is a focused fork of wasm-pack that has been streamlined to support only the `build` command with JavaScript-embedded WASM output. Key differences from wasm-pack:
+
+- Removed: npm publishing, testing infrastructure, project generation
+- Added: JavaScript embedding functionality via `src/js_bin.rs`
+- Modified: Build pipeline to generate compressed, embedded WASM in JavaScript files

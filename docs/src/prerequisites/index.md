@@ -1,21 +1,36 @@
 # Prerequisites
 
-First you'll want to [install the `wasm-pack` CLI][wasm-pack], and `wasm-pack
--V` should print the version that you just installed.
+## Rust
 
-[wasm-pack]: https://drager.github.io/wasm-pack/installer/
-
-Next, since `wasm-pack` is a build tool, you'll want to make sure you have
-[Rust][rust] installed. Make sure `rustc -V` prints out at least 1.30.0.
+Since `wasm-js` is a build tool for Rust projects, you'll need to have [Rust][rust] installed. Make sure `rustc -V` prints out at least version 1.30.0. We recommend using [rustup][rustup] to manage your Rust installation.
 
 [rust]: https://www.rust-lang.org/tools/install
+[rustup]: https://rustup.rs/
 
-Finally, if you're using `wasm-pack` to publish to NPM, you'll want
-to [install and configure `npm`][npm]. In the future, we intend to rewrite the
-npm registry client bits so that the need for a Node runtime is eliminated. If
-you're excited about that work- you should reach out to the maintainers and get
-involved!
+## wasm32 Target
 
-[npm]: ./npm.html
+`wasm-js` compiles your code using the `wasm32-unknown-unknown` target. If you're using rustup, this target will be automatically added when you run `wasm-js build` for the first time. If you want to add it manually, run:
 
-Using a non-rustup setup? Learn how to configure it for wasm-pack [here](./non-rustup-setups.html).
+```bash
+rustup target add wasm32-unknown-unknown
+```
+
+## Installing wasm-js
+
+You can install `wasm-js` by building from source:
+
+```bash
+git clone https://github.com/smallware-io/wasm-js.git
+cd wasm-js
+cargo install --path .
+```
+
+Verify the installation by running `wasm-js -V` which should print the installed version.
+
+## Additional Tools
+
+`wasm-js` will automatically download and use the correct version of `wasm-bindgen` for your project. Optionally, you can configure it to use `wasm-opt` for additional optimizations via the `Cargo.toml` configuration.
+
+---
+
+Using a non-rustup setup? Learn how to configure it for wasm-js [here](./non-rustup-setups.html).

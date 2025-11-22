@@ -1,20 +1,35 @@
-# wasm-pack build
+# wasm-js build
 
-The `wasm-pack build` command creates the files necessary for JavaScript
-interoperability and for publishing a package to npm. This involves compiling
-your code to wasm and generating a pkg folder. This pkg folder will contain the
-wasm binary, a JS wrapper file, your `README`, and a `package.json` file.
+The `wasm-js build` command compiles your Rust code to WebAssembly and generates JavaScript modules with **embedded, compressed WASM**. Unlike traditional WASM workflows, `wasm-js` produces self-contained JavaScript files where the WebAssembly binary is compressed (using Zlib), base64-encoded, and embedded directly within the JavaScript.
 
-The `pkg` directory is automatically `.gitignore`d by default, since it contains
-build artifacts which are not intended to be checked into version
-control.<sup>[0](#footnote-0)</sup>
+## Output Files
+
+By default, `wasm-js` generates files in a `dist` directory:
+
+- `{name}.js` - Main JavaScript module with embedded, compressed WASM chunks
+- `{name}_bg.js` - wasm-bindgen generated bindings and glue code
+- `{name}.d.ts` - TypeScript definitions for type-safe integration
+- `{name}_bg.wasm` - Raw WASM binary (kept for reference, but not needed for runtime)
+
+The `dist` directory is automatically `.gitignore`d by default, since it contains
+build artifacts which are not intended to be checked into version control.
+
+## How JavaScript-Embedded WASM Works
+
+1. The WASM binary is compressed using Zlib compression
+2. The compressed data is base64-encoded and split into 8KB chunks
+3. These chunks are embedded as string literals in the generated JavaScript
+4. At runtime, the chunks are decompressed using the browser's native `DecompressionStream` API (or Node.js equivalent)
+5. The decompressed WASM is instantiated and initialized automatically
+
+This approach means you only need to deploy JavaScript files - no separate `.wasm` files to serve or configure MIME types for.
 
 ## Path
 
-The `wasm-pack build` command can be given an optional path argument, e.g.:
+The `wasm-js build` command can be given an optional path argument, e.g.:
 
 ```
-wasm-pack build examples/js-hello-world
+wasm-js build examples/js-hello-world
 ```
 
 This path should point to a directory that contains a `Cargo.toml` file. If no
@@ -22,15 +37,15 @@ path is given, the `build` command will run in the current directory.
 
 ## Output Directory
 
-By default, `wasm-pack` will generate a directory for its build output called `pkg`.
+By default, `wasm-js` will generate a directory for its build output called `dist`.
 If you'd like to customize this you can use the `--out-dir` flag.
 
 ```
-wasm-pack build --out-dir out
+wasm-js build --out-dir out
 ```
 
 The above command will put your build artifacts in a directory called `out`, instead
-of the default `pkg`.
+of the default `dist`.
 
 ## Generated file names
 
@@ -39,13 +54,13 @@ Flag `--out-name` sets the prefix for output file names. If not provided, packag
 Usage examples, assuming our crate is named `dom`:
 
 ```
-wasm-pack build
+wasm-js build
 # will produce files
-# dom.d.ts  dom.js  dom_bg.d.ts  dom_bg.wasm  package.json  README.md
+# dom.d.ts  dom.js  dom_bg.js  dom_bg.wasm
 
-wasm-pack build --out-name index
+wasm-js build --out-name index
 # will produce files
-# index.d.ts  index.js  index_bg.d.ts  index_bg.wasm  package.json  README.md
+# index.d.ts  index.js  index_bg.js  index_bg.wasm
 ```
 
 
@@ -99,47 +114,35 @@ wasm-pack build --target nodejs
 [deploy-web]: https://rustwasm.github.io/docs/wasm-bindgen/reference/deployment.html#without-a-bundler
 [deploy-deno]: https://rustwasm.github.io/docs/wasm-bindgen/reference/deployment.html#deno
 
-## Scope
-
-The `build` command also accepts an optional `--scope` argument. This will scope
-your package name, which is useful if your package name might conflict with
-something in the public registry. For example:
-
-```
-wasm-pack build examples/js-hello-world --scope test
-```
-
-This command would create a `package.json` file for a package called
-`@test/js-hello-world`. For more information about scoping, you can refer to
-the npm documentation [here][npm-scope-documentation].
-
-[npm-scope-documentation]: https://docs.npmjs.com/misc/scope
-
 ## Mode
 
 The `build` command accepts an optional `--mode` argument.
 ```
-wasm-pack build examples/js-hello-world --mode no-install
+wasm-js build examples/js-hello-world --mode no-install
 ```
 
 | Option        | Description                                                                              |
 |---------------|------------------------------------------------------------------------------------------|
-| `no-install`  | `wasm-pack build` implicitly and create wasm binding without installing `wasm-bindgen`.  |
-| `normal`      | do all the stuffs of `no-install` with installed `wasm-bindgen`.                         |
+| `no-install`  | `wasm-js build` creates wasm bindings without installing `wasm-bindgen`.                 |
+| `normal`      | Performs full build with `wasm-bindgen` installation.                                    |
 
 ## Extra options
 
 The `build` command can pass extra options straight to `cargo build` even if
-they are not supported in wasm-pack. To use them simply add the extra arguments
+they are not supported in wasm-js. To use them simply add the extra arguments
 at the very end of your command, just as you would for `cargo build`. For
-example, to build the previous example using cargo's offline feature:
+example, to build using cargo's offline feature:
 
 ```
-wasm-pack build examples/js-hello-world --mode no-install -- --offline
+wasm-js build examples/js-hello-world --mode no-install -- --offline
 ```
 
-<hr style="font-size: 1.5em; margin-top: 2.5em"/>
+## Removed Features
 
-<sup id="footnote-0">0</sup> If you need to include additional assets in the pkg
-directory and your NPM package, we intend to have a solution for your use case
-soon. [↩](#wasm-pack-build)
+Unlike wasm-pack, `wasm-js` does not support:
+
+- **npm scope**: No `--scope` flag, as npm publishing is not supported
+- **package.json generation**: No automatic package.json or README copying
+- **npm publishing**: No integration with npm registries
+
+If you need to publish to npm, you can manually create a package.json and use standard npm publishing tools with the generated JavaScript files.

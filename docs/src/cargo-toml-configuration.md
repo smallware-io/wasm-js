@@ -1,15 +1,15 @@
 # `Cargo.toml` Configuration
 
-`wasm-pack` can be configured via the `package.metadata.wasm-pack` key in
+`wasm-js` can be configured via the `package.metadata.wasm-js` key in
 `Cargo.toml`. Every option has a default, and is not required.
 
 There are three profiles: `dev`, `profiling`, and `release`. These correspond to
-the `--dev`, `--profiling`, and `--release` flags passed to `wasm-pack build`.
+the `--dev`, `--profiling`, and `--release` flags passed to `wasm-js build`.
 
 The available configuration options and their default values are shown below:
 
 ```toml
-[package.metadata.wasm-pack.profile.dev]
+[package.metadata.wasm-js.profile.dev]
 # Should `wasm-opt` be used to further optimize the wasm binary generated after
 # the Rust compiler has finished? Using `wasm-opt` can often further decrease
 # binary size or do clever tricks that haven't made their way into LLVM yet.
@@ -24,7 +24,7 @@ The available configuration options and their default values are shown below:
 # https://github.com/WebAssembly/binaryen/blob/version_117/test/lit/help/wasm-opt.test
 wasm-opt = ['-O']
 
-[package.metadata.wasm-pack.profile.dev.wasm-bindgen]
+[package.metadata.wasm-js.profile.dev.wasm-bindgen]
 # Should we enable wasm-bindgen's debug assertions in its generated JS glue?
 debug-js-glue = true
 # Should wasm-bindgen demangle the symbols in the "name" custom section?
@@ -36,10 +36,10 @@ omit-default-module-path = false
 # Controls whether wasm-bindgen will split linked modules out into their own files. Enabling this is recommended, because it allows lazy-loading the linked modules and setting a stricter Content Security Policy. Only available in wasm-bindgen 0.2.95 and later.
 split-linked-modules = false
 
-[package.metadata.wasm-pack.profile.profiling]
+[package.metadata.wasm-js.profile.profiling]
 wasm-opt = ['-O']
 
-[package.metadata.wasm-pack.profile.profiling.wasm-bindgen]
+[package.metadata.wasm-js.profile.profiling.wasm-bindgen]
 debug-js-glue = false
 demangle-name-section = true
 dwarf-debug-info = false
@@ -47,12 +47,16 @@ omit-default-module-path = false
 
 # `wasm-opt` is on by default in for the release profile, but it can be
 # disabled by setting it to `false`
-[package.metadata.wasm-pack.profile.release]
+[package.metadata.wasm-js.profile.release]
 wasm-opt = false
 
-[package.metadata.wasm-pack.profile.release.wasm-bindgen]
+[package.metadata.wasm-js.profile.release.wasm-bindgen]
 debug-js-glue = false
 demangle-name-section = true
 dwarf-debug-info = false
 omit-default-module-path = false
 ```
+
+## Note on JavaScript-Embedded WASM
+
+Regardless of the wasm-opt settings, `wasm-js` will always compress the final WASM binary using Zlib compression before embedding it in JavaScript. This compression happens after all other optimizations and is separate from the `wasm-opt` optimization passes.

@@ -1,19 +1,19 @@
 ![wasm ferris](https://drager.github.io/wasm-pack/public/img/wasm-ferris.png)
 
-<h1 style="text-align: center;">Welcome to the <code>wasm-pack</code> docs!</h1>
+<h1 style="text-align: center;">Welcome to the <code>wasm-js</code> docs!</h1>
 
-This tool seeks to be a one-stop shop for building and working with rust-
-generated WebAssembly that you would like to interop with JavaScript, in the
-browser or with Node.js. `wasm-pack` helps you build rust-generated
-WebAssembly packages that you could publish to the npm registry, or otherwise use
-alongside any javascript packages in workflows that you already use, such as [webpack].
+`wasm-js` is a specialized build tool for compiling Rust code to WebAssembly and generating **self-contained JavaScript modules** with embedded WASM. Unlike traditional WASM workflows that require separate `.wasm` files, `wasm-js` produces a single JavaScript file with the compiled WebAssembly compressed and embedded directly within it.
 
-[bundler-support]: https://github.com/rustwasm/team/blob/master/goals/bundler-integration.md#details
+## Key Features
+
+- **JavaScript-Embedded WASM**: The compiled WebAssembly is compressed (using Zlib), base64-encoded, and embedded directly in the generated JavaScript file. No separate `.wasm` files to deploy.
+- **Universal Compatibility**: Works seamlessly in both browsers and Node.js environments
+- **TypeScript Support**: Automatically generates TypeScript definition files for type-safe integration
+- **Build Profiles**: Supports dev, profiling, and release builds with customizable optimization settings
+- **wasm-bindgen Integration**: Leverages wasm-bindgen for seamless Rust-JavaScript interoperability
+
+## Origins
+
+`wasm-js` is a fork of [wasm-pack](https://github.com/rustwasm/wasm-pack) that has been streamlined and modified to focus specifically on generating JavaScript-embedded WebAssembly modules. It has been stripped down to support only the `build` command, removing features like npm publishing, testing, and project generation.
+
 [webpack]: https://webpack.js.org/
-
-This project is a part of the [rust-wasm] group. You can find more info by
-visiting that repo!
-
-[rust-wasm]: https://github.com/rustwasm/team
-
-![demo](https://github.com/drager/wasm-pack/raw/master/demo.gif)
